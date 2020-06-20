@@ -4,10 +4,11 @@
   Version: 0.1.0
 */
 #include <Arduino.h>
+#include <Servo.h>
 
 /** 
  * Motors pin definition
-*/
+ */
 #define enableMotorRight 5 // ENB (PWM)
 #define frontMotorRight 8  // IN4
 #define backMotorRight 7   // IN3
@@ -16,6 +17,16 @@
 #define frontMotorLeft 4  // IN2
 #define backMotorLeft 2   // IN1
 
+/**
+ * Servo for Sonar
+ */
+Servo servoSonar;
+
+unsigned long prevMillis;
+unsigned int periodTime = 2000;
+byte count = 0;
+
+void servoSonarMove();
 void move(int motorLeft, int motorRight);
 void brake(byte motorR, byte motorL);
 
@@ -28,13 +39,52 @@ void setup()
   pinMode(enableMotorLeft, OUTPUT);
   pinMode(frontMotorLeft, OUTPUT);
   pinMode(backMotorLeft, OUTPUT);
+
+  servoSonar.attach(6);
+  prevMillis = millis();
 }
 
 void loop()
 {
+
+  if (millis() - prevMillis >= periodTime)
+  {
+
+    servoSonarMove();
+    prevMillis = millis();
+  }
 }
 
 // Functions
+void servoSonarMove()
+{
+  switch (count)
+  {
+  case 0:
+    servoSonar.write(10);
+    count = 1;
+    break;
+
+  case 1:
+    servoSonar.write(105);
+    count = 2;
+    break;
+
+  case 2:
+    servoSonar.write(180);
+    count = 3;
+    break;
+
+  case 3:
+    servoSonar.write(90);
+    count = 0;
+    break;
+
+  default:
+    break;
+  }
+}
+
 void move(int motorLeft, int motorRight)
 {
   motorRight = constrain(motorRight, -255, 255);
