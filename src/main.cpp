@@ -8,15 +8,15 @@
 /** 
  * Motors pin definition
 */
-#define enableMotorRight 5 // ENA (PWM)
-#define frontMotorRight 4  // IN3
-#define backMotorRight 7   // IN4
+#define enableMotorRight 5 // ENB (PWM)
+#define frontMotorRight 8  // IN4
+#define backMotorRight 7   // IN3
 
-#define enableMotorLeft 6 // ENB (PWM)
-#define frontMotorLeft 8  // IN2
-#define backMotorLeft 12  // IN1
+#define enableMotorLeft 3 // ENA (PWM)
+#define frontMotorLeft 4  // IN2
+#define backMotorLeft 2   // IN1
 
-void move(int motorRight, int motorLeft);
+void move(int motorLeft, int motorRight);
 void brake(byte motorR, byte motorL);
 
 void setup()
@@ -35,7 +35,7 @@ void loop()
 }
 
 // Functions
-void move(int motorRight, int motorLeft)
+void move(int motorLeft, int motorRight)
 {
   motorRight = constrain(motorRight, -255, 255);
   motorLeft = constrain(motorLeft, -255, 255);
