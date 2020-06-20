@@ -1,9 +1,8 @@
 /*
   FirebotUno
-  Autor: Rui Araújo
-  Versão: 0.1.0
+  Author: Rui Araújo
+  Version: 0.1.0
 */
-
 #include <Arduino.h>
 
 /** 
@@ -33,17 +32,6 @@ void setup()
 
 void loop()
 {
-  for (int i = 0; i < 255; i++)
-  {
-    move(i, i);
-    delay(50);
-  }
-
-  for (int i = 255; i > 0; i--)
-  {
-    move(i, i);
-    delay(50);
-  }
 }
 
 // Functions
