@@ -5,6 +5,7 @@
 */
 #include <Arduino.h>
 #include <Servo.h>
+#include <TimerOne.h>
 
 /** 
  * Motors pin definition
@@ -18,9 +19,14 @@
 #define backMotorLeft 2   // IN1
 
 /**
- * Servo for Sonar
+ * Servo for Sonar and Sonar
  */
+#define triggerSonar 9
+#define ecoSonar 10
 Servo servoSonar;
+volatile bool state;
+byte trigger;
+byte counter;
 
 /**
  * Auxiliar variables
@@ -38,7 +44,10 @@ void servoSonarMove();
 
 void setup()
 {
-  // Serial.begin(9600);
+  Serial.begin(9600);
+  /**
+   * Motors
+   */
   pinMode(enableMotorRight, OUTPUT);
   pinMode(frontMotorRight, OUTPUT);
   pinMode(backMotorRight, OUTPUT);
@@ -46,18 +55,36 @@ void setup()
   pinMode(frontMotorLeft, OUTPUT);
   pinMode(backMotorLeft, OUTPUT);
 
+  /**
+   * Servo and Sonar
+   */
+  pinMode(triggerSonar, OUTPUT);
+  pinMode(ecoSonar, INPUT);
+
+  Timer1.initialize(5000000);
+  Timer1.attachInterrupt(triggerSonar);
+  interrupts();
+
   servoSonar.attach(6);
-  prevMillis = millis();
+  servoSonar.write(0);
+
+  state = false;
+  trigger = HIGH;
+  counter = 0;
+
+  //prevMillis = millis();
 }
 
 void loop()
 {
 
-  if (millis() - prevMillis >= periodTime)
-  {
-    servoSonarMove();
-    prevMillis = millis();
-  }
+  // Serial.print("")
+
+  // if (millis() - prevMillis >= periodTime)
+  // {
+  //   servoSonarMove();
+  //   prevMillis = millis();
+  // }
 
   // move(150, 150);
 }
@@ -129,6 +156,7 @@ void brake(byte motorR, byte motorL)
 
 void servoSonarMove()
 {
+  Serial.println("Aqui");
   switch (count)
   {
   case 0:
@@ -152,6 +180,45 @@ void servoSonarMove()
     break;
 
   default:
+    break;
+  }
+}
+
+void sonarTrigger()
+{
+  /**
+   * We will change later when we have state machine working.
+   * If the state is (Follow Wall Right) only rotate servo to 0 -> 90 -> 0.
+   * No need to search for left wall.
+   */
+  switch (counter)
+  {
+  case 0:
+    digitalWrite(triggerSonar, trigger);
+    trigger = !trigger;
+    counter++;
+    break;
+
+  case 1:
+    digitalWrite(triggerSonar, trigger);
+    trigger = !trigger;
+    counter++;
+    servoSonar.write(90);
+    break;
+
+  case 2:
+    digitalWrite(triggerSonar, trigger);
+    trigger = !trigger;
+    counter++;
+    break;
+
+  case 3:
+    digitalWrite(triggerSonar, trigger);
+    trigger = !trigger;
+    counter++;
+    servoSonar.write(0);
+    counter = 0;
+    state = true;
     break;
   }
 }
