@@ -22,13 +22,19 @@
  */
 Servo servoSonar;
 
+/**
+ * Auxiliar variables
+ */
 unsigned long prevMillis;
-unsigned int periodTime = 2000;
+unsigned int periodTime = 10000;
 byte count = 0;
 
-void servoSonarMove();
+/**
+ * Instantiate functions
+ */
 void move(int motorLeft, int motorRight);
 void brake(byte motorR, byte motorL);
+void servoSonarMove();
 
 void setup()
 {
@@ -49,42 +55,16 @@ void loop()
 
   if (millis() - prevMillis >= periodTime)
   {
-
     servoSonarMove();
     prevMillis = millis();
   }
+
+  // move(150, 150);
 }
 
-// Functions
-void servoSonarMove()
-{
-  switch (count)
-  {
-  case 0:
-    servoSonar.write(10);
-    count = 1;
-    break;
-
-  case 1:
-    servoSonar.write(105);
-    count = 2;
-    break;
-
-  case 2:
-    servoSonar.write(180);
-    count = 3;
-    break;
-
-  case 3:
-    servoSonar.write(90);
-    count = 0;
-    break;
-
-  default:
-    break;
-  }
-}
-
+/**
+ *  Functions
+ */
 void move(int motorLeft, int motorRight)
 {
   motorRight = constrain(motorRight, -255, 255);
@@ -144,5 +124,34 @@ void brake(byte motorR, byte motorL)
     digitalWrite(frontMotorLeft, HIGH);
     digitalWrite(backMotorLeft, HIGH);
     analogWrite(enableMotorLeft, motorL);
+  }
+}
+
+void servoSonarMove()
+{
+  switch (count)
+  {
+  case 0:
+    servoSonar.write(10);
+    count = 1;
+    break;
+
+  case 1:
+    servoSonar.write(90);
+    count = 2;
+    break;
+
+  case 2:
+    servoSonar.write(180);
+    count = 3;
+    break;
+
+  case 3:
+    servoSonar.write(90);
+    count = 0;
+    break;
+
+  default:
+    break;
   }
 }
