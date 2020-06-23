@@ -4,8 +4,13 @@
   Version: 0.2.0
 */
 #include <Arduino.h>
+
 #include <Servo.h>
 #include <MsTimer2.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 /** 
  * Motors pin definition
@@ -39,12 +44,19 @@ unsigned long prevMillis;
 unsigned int periodTime = 100;
 
 /**
+ * Display
+ */
+Adafruit_SSD1306 display(128, 64, &Wire, -1); // Screen width, screen height, &Wire, reset pin (This display does not have one)
+
+/**
  * Instantiate functions
  */
 void move(int motorLeft, int motorRight);
 void brake(byte motorR, byte motorL);
 void sonarTrigger();
 void echoSonarMeasurement();
+void printTwoLinesOnDisplay(char label1, int data1, char label2, int data2);
+void printThreeLinesOnDisplay(char label1, int data1, char label2, int data2, char label3, int data3);
 
 // ******************************************
 // *** Setup
@@ -73,6 +85,7 @@ void setup()
   // Timer for sonar trigger
   MsTimer2::set(250, sonarTrigger); // 250ms period
   MsTimer2::start();
+  // MsTimer2::stop(); // Tests only
 
   // Echo interrupt
   attachInterrupt(digitalPinToInterrupt(echoSonar), echoSonarMeasurement, CHANGE);
@@ -87,6 +100,14 @@ void setup()
   counter = 0;
   echoMeasurementIndex = 0;
 
+  /**
+   * Display
+   */
+  // initialize with the I2C addr 0x3C
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  // Clear the buffer.
+  display.clearDisplay();
+
   prevMillis = millis();
 }
 
@@ -98,16 +119,18 @@ void loop()
 
   if (millis() - prevMillis >= periodTime)
   {
-    Serial.print("Couter: ");
-    Serial.println(counter);
+    // printTwoLinesOnDisplay('F', echoMeasurement[0], 'R', echoMeasurement[1]);
+    printThreeLinesOnDisplay('R', echoMeasurement[0], 'F', echoMeasurement[1], 'L', echoMeasurement[2]);
+    // Serial.print("Couter: ");
+    // Serial.println(counter);
 
-    Serial.print("Echo R: ");
-    Serial.println(echoMeasurement[0]);
+    // Serial.print("Echo R: ");
+    // Serial.println(echoMeasurement[0]);
 
-    Serial.print("Echo F: ");
-    Serial.println(echoMeasurement[1]);
+    // Serial.print("Echo F: ");
+    // Serial.println(echoMeasurement[1]);
 
-    prevMillis = millis();
+    // prevMillis = millis();
   }
 
   // move(150, 150);
@@ -247,4 +270,61 @@ void echoSonarMeasurement()
   {
     echoMeasurement[echoMeasurementIndex] = ((micros() - echo) >> 5); // Shift data to have a more small number
   }
+}
+
+// Print two lines on display
+void printTwoLinesOnDisplay(char label1, int data1, char label2, int data2)
+{
+  display.clearDisplay();
+
+  display.drawRoundRect(0, 0, 128, 64, 2, WHITE);
+
+  display.setTextSize(4);
+  display.setTextColor(WHITE);
+
+  display.setCursor(2, 2);
+  display.print(label1);
+  display.print(":");
+  display.println(data1);
+
+  display.drawLine(0, 31, 127, 31, WHITE);
+
+  display.setCursor(2, 33);
+  display.print(label2);
+  display.print(":");
+  display.println(data2);
+
+  display.display();
+}
+
+// Print three lines on display
+void printThreeLinesOnDisplay(char label1, int data1, char label2, int data2, char label3, int data3)
+{
+  display.clearDisplay();
+
+  display.drawRoundRect(0, 0, 128, 64, 2, WHITE);
+
+  display.setTextSize(2);
+  display.setTextColor(WHITE);
+
+  display.setCursor(2, 4);
+  display.print(label1);
+  display.print(":");
+  display.println(data1);
+
+  display.drawLine(0, 21, 127, 21, WHITE);
+
+  display.setCursor(2, 25);
+  display.print(label2);
+  display.print(":");
+  display.println(data2);
+
+  display.drawLine(0, 42, 127, 42, WHITE);
+
+  display.setCursor(2, 46);
+  display.print(label3);
+  display.print(":");
+  display.println(data3);
+
+  display.display();
 }
