@@ -34,14 +34,16 @@ Servo servoSonar;
 volatile bool state;
 volatile byte trigger;
 volatile byte counter;
-unsigned long echoMeasurement[3]; // Right, Front, Left
+unsigned long echoMeasurement[4]; // Right, Front, Left, Not used (hold unacuareted values)
 volatile byte echoMeasurementIndex;
 
 /**
  * Auxiliar variables
  */
 unsigned long prevMillis;
-unsigned int periodTime = 100;
+unsigned int periodTime = 1000;
+
+unsigned int loopCount;
 
 /**
  * Display
@@ -83,7 +85,7 @@ void setup()
   pinMode(echoSonar, INPUT);
 
   // Timer for sonar trigger
-  MsTimer2::set(250, sonarTrigger); // 250ms period
+  MsTimer2::set(50, sonarTrigger); // 50ms period
   MsTimer2::start();
   // MsTimer2::stop(); // Tests only
 
@@ -95,7 +97,7 @@ void setup()
   servoSonar.write(10);
 
   // Other variables
-  state = false;
+  state = true;
   trigger = HIGH;
   counter = 0;
   echoMeasurementIndex = 0;
@@ -108,6 +110,7 @@ void setup()
   // Clear the buffer.
   display.clearDisplay();
 
+  loopCount = 0;
   prevMillis = millis();
 }
 
@@ -116,13 +119,17 @@ void setup()
 // ******************************************
 void loop()
 {
+  loopCount++;
 
   if (millis() - prevMillis >= periodTime)
   {
-    // printTwoLinesOnDisplay('F', echoMeasurement[0], 'R', echoMeasurement[1]);
-    printThreeLinesOnDisplay('R', echoMeasurement[0], 'F', echoMeasurement[1], 'L', echoMeasurement[2]);
+    // printTwoLinesOnDisplay('R', echoMeasurement[0], 'F', echoMeasurement[1]);
+    // printThreeLinesOnDisplay('R', echoMeasurement[0], 'F', echoMeasurement[1], 'L', echoMeasurement[2]);
+    // printThreeLinesOnDisplay('R', echoMeasurement[0], 'F', echoMeasurement[1], 'L', loopCount);
+    Serial.println(loopCount);
+    loopCount = 0;
+
     // Serial.print("Couter: ");
-    // Serial.println(counter);
 
     // Serial.print("Echo R: ");
     // Serial.println(echoMeasurement[0]);
@@ -130,7 +137,7 @@ void loop()
     // Serial.print("Echo F: ");
     // Serial.println(echoMeasurement[1]);
 
-    // prevMillis = millis();
+    prevMillis = millis();
   }
 
   // move(150, 150);
@@ -214,46 +221,9 @@ void sonarTrigger()
    * No need to search for left wall.
    * Right now, it stay 4 times on right and 2 times on front (repeatedly)
    */
-  switch (counter)
-  {
-  case 0:
-    servoSonar.write(10);     // Rotate servo to the right
-    echoMeasurementIndex = 0; // Index to save measured echo
-    digitalWrite(triggerSonar, trigger);
-    trigger = !trigger;
-    counter++;
-    break;
 
-  case 1:
-  case 3:
-    digitalWrite(triggerSonar, trigger);
-    trigger = !trigger;
-    counter++;
-    break;
-
-  case 2:
-    digitalWrite(triggerSonar, trigger);
-    trigger = !trigger;
-    counter++;
-    break;
-
-  case 4:
-    servoSonar.write(90);     // Rotate servo to the front
-    echoMeasurementIndex = 1; // Index to save measured echo
-    digitalWrite(triggerSonar, trigger);
-    trigger = !trigger;
-    counter++;
-    break;
-
-  case 5:
-    digitalWrite(triggerSonar, trigger);
-    trigger = !trigger;
-    counter = 0;
-    break;
-
-  default:
-    break;
-  }
+  digitalWrite(triggerSonar, trigger);
+  trigger = !trigger;
 }
 
 // External interrupt function to measure sonar distance
@@ -262,6 +232,32 @@ void echoSonarMeasurement()
   static unsigned long echo;
   unsigned int echoPinState = digitalRead(echoSonar);
 
+  // 0, 1 -> Move
+  // 2, 3, 4, 5, 6, 7, 8, 9 -> Right
+  // 10, 11, -> Move
+  // 12, 13 -> Front
+  if (counter > 13)
+    counter = 0;
+
+  if (counter == 0)
+  {
+    servoSonar.write(10);
+    echoMeasurementIndex = 4;
+  }
+  else if (counter == 2)
+  {
+    echoMeasurementIndex = 0;
+  }
+  else if (counter == 10)
+  {
+    servoSonar.write(90);
+    echoMeasurementIndex = 4;
+  }
+  else if (counter == 12)
+  {
+    echoMeasurementIndex = 1;
+  }
+
   if (echoPinState)
   {
     echo = micros();
@@ -269,6 +265,7 @@ void echoSonarMeasurement()
   else
   {
     echoMeasurement[echoMeasurementIndex] = ((micros() - echo) >> 5); // Shift data to have a more small number
+    counter++;
   }
 }
 
