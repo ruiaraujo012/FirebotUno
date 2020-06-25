@@ -7,10 +7,8 @@
 
 #include <Servo.h>
 #include <MsTimer2.h>
-#include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <LiquidCrystal_I2C.h>
 
 /** 
  * Motors pin definition
@@ -34,7 +32,7 @@ Servo servoSonar;
 volatile bool state;
 volatile byte trigger;
 volatile byte counter;
-unsigned long echoMeasurement[4]; // Right, Front, Left, Not used (hold unacuareted values)
+unsigned int echoMeasurement[4]; // Right, Front, Left, Not used (hold unacuareted values)
 volatile byte echoMeasurementIndex;
 
 /**
@@ -43,12 +41,10 @@ volatile byte echoMeasurementIndex;
 unsigned long prevMillis;
 unsigned int periodTime = 1000;
 
-unsigned int loopCount;
-
 /**
- * Display
+ * LCD
  */
-Adafruit_SSD1306 display(128, 64, &Wire, -1); // Screen width, screen height, &Wire, reset pin (This display does not have one)
+LiquidCrystal_I2C lcd(0x3F, 16, 2); // address, cols, rows
 
 /**
  * Instantiate functions
@@ -57,8 +53,7 @@ void move(int motorLeft, int motorRight);
 void brake(byte motorR, byte motorL);
 void sonarTrigger();
 void echoSonarMeasurement();
-void printTwoLinesOnDisplay(char label1, int data1, char label2, int data2);
-void printThreeLinesOnDisplay(char label1, int data1, char label2, int data2, char label3, int data3);
+void printOnLCD(String label1, String line1, String label2 = "", String line2 = "");
 
 // ******************************************
 // *** Setup
@@ -103,14 +98,11 @@ void setup()
   echoMeasurementIndex = 0;
 
   /**
-   * Display
+   * LCD
    */
-  // initialize with the I2C addr 0x3C
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  // Clear the buffer.
-  display.clearDisplay();
+  lcd.init();      // initialize the lcd
+  lcd.backlight(); // turn on backlight
 
-  loopCount = 0;
   prevMillis = millis();
 }
 
@@ -119,23 +111,10 @@ void setup()
 // ******************************************
 void loop()
 {
-  loopCount++;
 
   if (millis() - prevMillis >= periodTime)
   {
-    // printTwoLinesOnDisplay('R', echoMeasurement[0], 'F', echoMeasurement[1]);
-    // printThreeLinesOnDisplay('R', echoMeasurement[0], 'F', echoMeasurement[1], 'L', echoMeasurement[2]);
-    // printThreeLinesOnDisplay('R', echoMeasurement[0], 'F', echoMeasurement[1], 'L', loopCount);
-    Serial.println(loopCount);
-    loopCount = 0;
-
-    // Serial.print("Couter: ");
-
-    // Serial.print("Echo R: ");
-    // Serial.println(echoMeasurement[0]);
-
-    // Serial.print("Echo F: ");
-    // Serial.println(echoMeasurement[1]);
+    printOnLCD("Front: ", String(echoMeasurement[1]), "Right: ", String(echoMeasurement[0]));
 
     prevMillis = millis();
   }
@@ -270,58 +249,18 @@ void echoSonarMeasurement()
 }
 
 // Print two lines on display
-void printTwoLinesOnDisplay(char label1, int data1, char label2, int data2)
+void printOnLCD(String label1, String line1, String label2 = "", String line2 = "")
 {
-  display.clearDisplay();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(label1);
+  lcd.print(line1);
 
-  display.drawRoundRect(0, 0, 128, 64, 2, WHITE);
+  if (label2 != "" && line2 != "")
+  {
 
-  display.setTextSize(4);
-  display.setTextColor(WHITE);
-
-  display.setCursor(2, 2);
-  display.print(label1);
-  display.print(":");
-  display.println(data1);
-
-  display.drawLine(0, 31, 127, 31, WHITE);
-
-  display.setCursor(2, 33);
-  display.print(label2);
-  display.print(":");
-  display.println(data2);
-
-  display.display();
-}
-
-// Print three lines on display
-void printThreeLinesOnDisplay(char label1, int data1, char label2, int data2, char label3, int data3)
-{
-  display.clearDisplay();
-
-  display.drawRoundRect(0, 0, 128, 64, 2, WHITE);
-
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
-
-  display.setCursor(2, 4);
-  display.print(label1);
-  display.print(":");
-  display.println(data1);
-
-  display.drawLine(0, 21, 127, 21, WHITE);
-
-  display.setCursor(2, 25);
-  display.print(label2);
-  display.print(":");
-  display.println(data2);
-
-  display.drawLine(0, 42, 127, 42, WHITE);
-
-  display.setCursor(2, 46);
-  display.print(label3);
-  display.print(":");
-  display.println(data3);
-
-  display.display();
+    lcd.setCursor(0, 1);
+    lcd.print(label2);
+    lcd.print(line2);
+  }
 }
