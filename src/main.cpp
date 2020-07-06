@@ -36,6 +36,18 @@ unsigned int echoMeasurement[4]; // Right, Front, Left, Not used (hold unacuaret
 volatile byte echoMeasurementIndex;
 
 /**
+ * PID
+ */
+const double kp = 1;
+const double ki = 0.00001;
+const double kd = 10;
+// const byte setpoint = 25;
+const byte setpoint = 40;
+double comulativePIDError;
+double lastPIDError;
+unsigned long previousPIDTime;
+
+/**
  * Auxiliar variables
  */
 unsigned long prevMillis;
@@ -54,6 +66,7 @@ void brake(byte motorR, byte motorL);
 void sonarTrigger();
 void echoSonarMeasurement();
 void printOnLCD(String label1, String line1, String label2 = "", String line2 = "");
+double computePID(int sensorInput);
 
 // ******************************************
 // *** Setup
@@ -91,6 +104,11 @@ void setup()
   servoSonar.attach(9);
   servoSonar.write(10);
 
+  // PID
+  comulativePIDError = 0.0;
+  lastPIDError = 0;
+  previousPIDTime = 0;
+
   // Other variables
   state = true;
   trigger = HIGH;
@@ -100,8 +118,9 @@ void setup()
   /**
    * LCD
    */
-  lcd.init();      // initialize the lcd
-  lcd.backlight(); // turn on backlight
+  lcd.init(); // initialize the lcd
+  // lcd.backlight(); // turn on backlight
+  lcd.noBacklight(); // turn off backlight
 
   prevMillis = millis();
 }
@@ -112,14 +131,24 @@ void setup()
 void loop()
 {
 
-  if (millis() - prevMillis >= periodTime)
+  if (echoMeasurement[0] < 2000)
   {
-    printOnLCD("Front: ", String(echoMeasurement[1]), "Right: ", String(echoMeasurement[0]));
-
-    prevMillis = millis();
+    double PIDVal = computePID(echoMeasurement[0]);
+    Serial.print(echoMeasurement[0]);
+    Serial.print(" ");
+    Serial.println(PIDVal);
+    if (PIDVal < 0)
+      move(100 - PIDVal, 200 + PIDVal);
+    else
+      move(100 + PIDVal, 200 - PIDVal);
   }
 
-  // move(150, 150);
+  // if (millis() - prevMillis >= periodTime)
+  // {
+  //   printOnLCD("Right: ", String(echoMeasurement[0]));
+
+  //   prevMillis = millis();
+  // }
 }
 
 /**
@@ -129,8 +158,8 @@ void loop()
 // Move robot wheels
 void move(int motorLeft, int motorRight)
 {
-  motorRight = constrain(motorRight, -255, 255);
   motorLeft = constrain(motorLeft, -255, 255);
+  motorRight = constrain(motorRight, -255, 255);
 
   if (motorRight < 0)
   {
@@ -215,27 +244,27 @@ void echoSonarMeasurement()
   // 2, 3, 4, 5, 6, 7, 8, 9 -> Right
   // 10, 11, -> Move
   // 12, 13 -> Front
-  if (counter > 13)
-    counter = 0;
+  // if (counter > 13)
+  //   counter = 0;
 
-  if (counter == 0)
-  {
-    servoSonar.write(10);
-    echoMeasurementIndex = 4;
-  }
-  else if (counter == 2)
-  {
-    echoMeasurementIndex = 0;
-  }
-  else if (counter == 10)
-  {
-    servoSonar.write(90);
-    echoMeasurementIndex = 4;
-  }
-  else if (counter == 12)
-  {
-    echoMeasurementIndex = 1;
-  }
+  // if (counter == 0)
+  // {
+  //   servoSonar.write(10);
+  //   echoMeasurementIndex = 4;
+  // }
+  // else if (counter == 2)
+  // {
+  //   echoMeasurementIndex = 0;
+  // }
+  // else if (counter == 10)
+  // {
+  //   servoSonar.write(90);
+  //   echoMeasurementIndex = 4;
+  // }
+  // else if (counter == 12)
+  // {
+  //   echoMeasurementIndex = 1;
+  // }
 
   if (echoPinState)
   {
@@ -244,7 +273,7 @@ void echoSonarMeasurement()
   else
   {
     echoMeasurement[echoMeasurementIndex] = ((micros() - echo) >> 5); // Shift data to have a more small number
-    counter++;
+    // counter++;
   }
 }
 
@@ -263,4 +292,26 @@ void printOnLCD(String label1, String line1, String label2 = "", String line2 = 
     lcd.print(label2);
     lcd.print(line2);
   }
+}
+
+// Compute PID
+double computePID(int sensorInput)
+{
+  unsigned long currentPIDTime = millis();
+
+  int elapsedPIDTime = (int)(currentPIDTime - previousPIDTime);
+
+  double PIDError = setpoint - sensorInput;
+
+  comulativePIDError += PIDError * elapsedPIDTime;
+
+  double ratePIDError = (PIDError - lastPIDError) / elapsedPIDTime;
+
+  double outputPID = kp * PIDError + ki * comulativePIDError + kd * ratePIDError;
+  outputPID = constrain(outputPID, -255, 255);
+
+  lastPIDError = PIDError;
+  previousPIDTime = currentPIDTime;
+
+  return outputPID;
 }
