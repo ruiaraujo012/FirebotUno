@@ -10,6 +10,10 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
+// Temporary
+#include <SoftwareSerial.h>
+SoftwareSerial BTserial(0, 1); // RX | TX
+
 /** 
  * Motors pin definition
  */
@@ -36,6 +40,18 @@ unsigned int echoMeasurement[4]; // Right, Front, Left, Not used (hold unacuaret
 volatile byte echoMeasurementIndex;
 
 /**
+ * PID
+ */
+const double kp = 1;
+const double ki = 0.00001;
+const double kd = 10;
+// const byte setpoint = 25;
+const byte setpoint = 40;
+double comulativePIDError;
+double lastPIDError;
+unsigned long previousPIDTime;
+
+/**
  * Auxiliar variables
  */
 unsigned long prevMillis;
@@ -54,6 +70,7 @@ void brake(byte motorR, byte motorL);
 void sonarTrigger();
 void echoSonarMeasurement();
 void printOnLCD(String label1, String line1, String label2 = "", String line2 = "");
+double computePID(int sensorInput);
 
 // ******************************************
 // *** Setup
@@ -61,6 +78,7 @@ void printOnLCD(String label1, String line1, String label2 = "", String line2 = 
 void setup()
 {
   Serial.begin(9600);
+  BTserial.begin(9600);
 
   /**
    * Motors
@@ -80,7 +98,7 @@ void setup()
   pinMode(echoSonar, INPUT);
 
   // Timer for sonar trigger
-  MsTimer2::set(50, sonarTrigger); // 50ms period
+  MsTimer2::set(25, sonarTrigger); // 25ms period
   MsTimer2::start();
   // MsTimer2::stop(); // Tests only
 
@@ -91,6 +109,11 @@ void setup()
   servoSonar.attach(9);
   servoSonar.write(10);
 
+  // PID
+  comulativePIDError = 0.0;
+  lastPIDError = 0;
+  previousPIDTime = 0;
+
   // Other variables
   state = true;
   trigger = HIGH;
@@ -100,8 +123,9 @@ void setup()
   /**
    * LCD
    */
-  lcd.init();      // initialize the lcd
-  lcd.backlight(); // turn on backlight
+  lcd.init(); // initialize the lcd
+  // lcd.backlight(); // turn on backlight
+  lcd.noBacklight(); // turn off backlight
 
   prevMillis = millis();
 }
@@ -111,15 +135,25 @@ void setup()
 // ******************************************
 void loop()
 {
+  double PIDVal = computePID(echoMeasurement[0]);
+  Serial.print(echoMeasurement[0]);
+  Serial.print("\t");
+  Serial.println(PIDVal);
 
-  if (millis() - prevMillis >= periodTime)
-  {
-    printOnLCD("Front: ", String(echoMeasurement[1]), "Right: ", String(echoMeasurement[0]));
+  if (Serial.available())
+    BTserial.write(Serial.read());
 
-    prevMillis = millis();
-  }
+  if (PIDVal < 0)
+    move(100 - PIDVal, 200 + PIDVal);
+  else
+    move(100 + PIDVal, 200 - PIDVal);
 
-  // move(150, 150);
+  // if (millis() - prevMillis >= periodTime)
+  // {
+  //   printOnLCD("Right: ", String(echoMeasurement[0]));
+
+  //   prevMillis = millis();
+  // }
 }
 
 /**
@@ -129,8 +163,8 @@ void loop()
 // Move robot wheels
 void move(int motorLeft, int motorRight)
 {
-  motorRight = constrain(motorRight, -255, 255);
   motorLeft = constrain(motorLeft, -255, 255);
+  motorRight = constrain(motorRight, -255, 255);
 
   if (motorRight < 0)
   {
@@ -194,13 +228,6 @@ void brake(byte motorR, byte motorL)
 // Timer interrupt function
 void sonarTrigger()
 {
-  /**
-   * We will change later when we have state machine working.
-   * If the state is (Follow Wall Right) only rotate servo to 0 -> 90 -> 0.
-   * No need to search for left wall.
-   * Right now, it stay 4 times on right and 2 times on front (repeatedly)
-   */
-
   digitalWrite(triggerSonar, trigger);
   trigger = !trigger;
 }
@@ -211,32 +238,6 @@ void echoSonarMeasurement()
   static unsigned long echo;
   unsigned int echoPinState = digitalRead(echoSonar);
 
-  // 0, 1 -> Move
-  // 2, 3, 4, 5, 6, 7, 8, 9 -> Right
-  // 10, 11, -> Move
-  // 12, 13 -> Front
-  if (counter > 13)
-    counter = 0;
-
-  if (counter == 0)
-  {
-    servoSonar.write(10);
-    echoMeasurementIndex = 4;
-  }
-  else if (counter == 2)
-  {
-    echoMeasurementIndex = 0;
-  }
-  else if (counter == 10)
-  {
-    servoSonar.write(90);
-    echoMeasurementIndex = 4;
-  }
-  else if (counter == 12)
-  {
-    echoMeasurementIndex = 1;
-  }
-
   if (echoPinState)
   {
     echo = micros();
@@ -244,7 +245,6 @@ void echoSonarMeasurement()
   else
   {
     echoMeasurement[echoMeasurementIndex] = ((micros() - echo) >> 5); // Shift data to have a more small number
-    counter++;
   }
 }
 
@@ -263,4 +263,26 @@ void printOnLCD(String label1, String line1, String label2 = "", String line2 = 
     lcd.print(label2);
     lcd.print(line2);
   }
+}
+
+// Compute PID
+double computePID(int sensorInput)
+{
+  unsigned long currentPIDTime = millis();
+
+  int elapsedPIDTime = (int)(currentPIDTime - previousPIDTime);
+
+  double PIDError = setpoint - sensorInput;
+
+  comulativePIDError += PIDError * elapsedPIDTime;
+
+  double ratePIDError = (PIDError - lastPIDError) / elapsedPIDTime;
+
+  double outputPID = kp * PIDError + ki * comulativePIDError + kd * ratePIDError;
+  outputPID = constrain(outputPID, -255, 255);
+
+  lastPIDError = PIDError;
+  previousPIDTime = currentPIDTime;
+
+  return outputPID;
 }
