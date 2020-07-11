@@ -12,7 +12,7 @@
 
 // Temporary
 #include <SoftwareSerial.h>
-SoftwareSerial BTserial(0, 1); // RX | TX
+SoftwareSerial BTSerial(0, 1); // RX | TX
 
 /** 
  * Motors pin definition
@@ -35,7 +35,6 @@ Servo servoSonar;
 
 volatile bool state;
 volatile byte trigger;
-volatile byte counter;
 unsigned int echoMeasurement[4]; // Right, Front, Left, Not used (hold unacuareted values)
 volatile byte echoMeasurementIndex;
 
@@ -45,22 +44,27 @@ volatile byte echoMeasurementIndex;
 const double kp = 1;
 const double ki = 0.00001;
 const double kd = 10;
-// const byte setpoint = 25;
 const byte setpoint = 40;
 double comulativePIDError;
 double lastPIDError;
 unsigned long previousPIDTime;
 
 /**
+ * LCD
+ */
+LiquidCrystal_I2C lcd(0x3F, 16, 2); // address, cols, rows
+
+/**
+ * Line Sensor
+ */
+#define sensorLineLeft A0
+word sensorLineLeftValue;
+
+/**
  * Auxiliar variables
  */
 unsigned long prevMillis;
 unsigned int periodTime = 1000;
-
-/**
- * LCD
- */
-LiquidCrystal_I2C lcd(0x3F, 16, 2); // address, cols, rows
 
 /**
  * Instantiate functions
@@ -78,7 +82,7 @@ double computePID(int sensorInput);
 void setup()
 {
   Serial.begin(9600);
-  BTserial.begin(9600);
+  BTSerial.begin(9600);
 
   /**
    * Motors
@@ -109,16 +113,12 @@ void setup()
   servoSonar.attach(9);
   servoSonar.write(10);
 
-  // PID
+  /**
+   * PID
+   */
   comulativePIDError = 0.0;
   lastPIDError = 0;
   previousPIDTime = 0;
-
-  // Other variables
-  state = true;
-  trigger = HIGH;
-  counter = 0;
-  echoMeasurementIndex = 0;
 
   /**
    * LCD
@@ -126,6 +126,19 @@ void setup()
   lcd.init(); // initialize the lcd
   // lcd.backlight(); // turn on backlight
   lcd.noBacklight(); // turn off backlight
+
+  /**
+   * Line Sensor
+   */
+  pinMode(sensorLineLeft, INPUT);
+  sensorLineLeftValue = 0;
+
+  /**
+   * Other variables
+   */
+  state = true;
+  trigger = HIGH;
+  echoMeasurementIndex = 0;
 
   prevMillis = millis();
 }
@@ -135,18 +148,18 @@ void setup()
 // ******************************************
 void loop()
 {
-  double PIDVal = computePID(echoMeasurement[0]);
-  Serial.print(echoMeasurement[0]);
-  Serial.print("\t");
-  Serial.println(PIDVal);
+  sensorLineLeftValue = analogRead(sensorLineLeft);
+  Serial.println(sensorLineLeftValue);
 
-  if (Serial.available())
-    BTserial.write(Serial.read());
+  // double PIDVal = computePID(echoMeasurement[0]);
+  // Serial.print(echoMeasurement[0]);
+  // Serial.print("\t");
+  // Serial.println(PIDVal);
 
-  if (PIDVal < 0)
-    move(100 - PIDVal, 200 + PIDVal);
-  else
-    move(100 + PIDVal, 200 - PIDVal);
+  // if (PIDVal < 0)
+  //   move(100 - PIDVal, 200 + PIDVal);
+  // else
+  //   move(100 + PIDVal, 200 - PIDVal);
 
   // if (millis() - prevMillis >= periodTime)
   // {
@@ -154,6 +167,9 @@ void loop()
 
   //   prevMillis = millis();
   // }
+
+  if (Serial.available())
+    BTSerial.write(Serial.read());
 }
 
 /**
