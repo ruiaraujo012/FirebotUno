@@ -25,6 +25,8 @@ SoftwareSerial BTSerial(0, 1); // RX | TX
 #define frontMotorLeft 8  // IN2
 #define backMotorLeft 7   // IN1
 
+#define minSpeed 120 // Minimum motor speed
+
 /**
  * Servo and sonar
  */
@@ -41,12 +43,12 @@ volatile byte echoMeasurementIndex;
 /**
  * PID
  */
-const double kp = 1;
-const double ki = 0.00001;
-const double kd = 10;
+const float kp = 1.0;
+const float ki = 0.0;
+const float kd = 0.0;
 const byte setpoint = 40;
-double comulativePIDError;
-double lastPIDError;
+float comulativePIDError;
+float lastPIDError;
 unsigned long previousPIDTime;
 
 /**
@@ -74,7 +76,7 @@ void brake(byte motorR, byte motorL);
 void sonarTrigger();
 void echoSonarMeasurement();
 void printOnLCD(String label1, String line1, String label2 = "", String line2 = "");
-double computePID(int sensorInput);
+float computePID(int sensorInput);
 
 // ******************************************
 // *** Setup
@@ -111,7 +113,7 @@ void setup()
 
   // Servo
   servoSonar.attach(9);
-  servoSonar.write(10);
+  servoSonar.write(4);
 
   /**
    * PID
@@ -148,25 +150,23 @@ void setup()
 // ******************************************
 void loop()
 {
-  sensorLineLeftValue = analogRead(sensorLineLeft);
-  Serial.println(sensorLineLeftValue);
+  int sensorData = echoMeasurement[0];
+  if (sensorData < 1000)
+  {
+    float PIDVal = computePID(sensorData);
+    Serial.print(setpoint);
+    Serial.print("\t");
+    Serial.print(sensorData);
+    Serial.print("\t");
+    Serial.println(PIDVal);
 
-  // double PIDVal = computePID(echoMeasurement[0]);
-  // Serial.print(echoMeasurement[0]);
-  // Serial.print("\t");
-  // Serial.println(PIDVal);
+    move(minSpeed - PIDVal, minSpeed + PIDVal);
+  }
 
   // if (PIDVal < 0)
-  //   move(100 - PIDVal, 200 + PIDVal);
+  //   move(minSpeed - PIDVal, minSpeed + PIDVal);
   // else
-  //   move(100 + PIDVal, 200 - PIDVal);
-
-  // if (millis() - prevMillis >= periodTime)
-  // {
-  //   printOnLCD("Right: ", String(echoMeasurement[0]));
-
-  //   prevMillis = millis();
-  // }
+  //   move(minSpeed - PIDVal, minSpeed + PIDVal);
 
   if (Serial.available())
     BTSerial.write(Serial.read());
@@ -179,8 +179,11 @@ void loop()
 // Move robot wheels
 void move(int motorLeft, int motorRight)
 {
-  motorLeft = constrain(motorLeft, -255, 255);
+  motorLeft = motorLeft - 6; // Remove motor velocity error compared with right motor
+
+  motorLeft = constrain(motorLeft, -249, 249); 
   motorRight = constrain(motorRight, -255, 255);
+
 
   if (motorRight < 0)
   {
@@ -282,19 +285,19 @@ void printOnLCD(String label1, String line1, String label2 = "", String line2 = 
 }
 
 // Compute PID
-double computePID(int sensorInput)
+float computePID(int sensorInput)
 {
   unsigned long currentPIDTime = millis();
 
   int elapsedPIDTime = (int)(currentPIDTime - previousPIDTime);
 
-  double PIDError = setpoint - sensorInput;
+  float PIDError = setpoint - sensorInput;
 
   comulativePIDError += PIDError * elapsedPIDTime;
 
-  double ratePIDError = (PIDError - lastPIDError) / elapsedPIDTime;
+  float ratePIDError = (PIDError - lastPIDError) / elapsedPIDTime;
 
-  double outputPID = kp * PIDError + ki * comulativePIDError + kd * ratePIDError;
+  float outputPID = kp * PIDError + ki * comulativePIDError + kd * ratePIDError;
   outputPID = constrain(outputPID, -255, 255);
 
   lastPIDError = PIDError;
