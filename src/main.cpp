@@ -32,6 +32,7 @@ SoftwareSerial BTSerial(0, 1); // RX | TX
  */
 #define triggerSonar 4
 #define echoSonar 3 // Interrupt 1 (External)
+#define servoLeftAngle 15
 
 Servo servoSonar;
 
@@ -43,10 +44,10 @@ volatile byte echoMeasurementIndex;
 /**
  * PID
  */
-const float kp = 1.0;
+const float kp = 0.8;
 const float ki = 0.0;
 const float kd = 0.0;
-const byte setpoint = 40;
+const byte setpoint = 45;
 float comulativePIDError;
 float lastPIDError;
 unsigned long previousPIDTime;
@@ -113,7 +114,7 @@ void setup()
 
   // Servo
   servoSonar.attach(9);
-  servoSonar.write(4);
+  servoSonar.write(servoLeftAngle);
 
   /**
    * PID
@@ -151,17 +152,17 @@ void setup()
 void loop()
 {
   int sensorData = echoMeasurement[0];
-  if (sensorData < 1000)
-  {
-    float PIDVal = computePID(sensorData);
-    Serial.print(setpoint);
-    Serial.print("\t");
-    Serial.print(sensorData);
-    Serial.print("\t");
-    Serial.println(PIDVal);
+  // if (sensorData < 1000)
+  // {
+  float PIDVal = computePID(sensorData);
+  Serial.print(setpoint);
+  Serial.print("\t");
+  Serial.print(sensorData);
+  Serial.print("\t");
+  Serial.println(PIDVal);
 
-    move(minSpeed - PIDVal, minSpeed + PIDVal);
-  }
+  move(minSpeed - PIDVal, minSpeed + PIDVal);
+  // }
 
   // if (PIDVal < 0)
   //   move(minSpeed - PIDVal, minSpeed + PIDVal);
@@ -181,9 +182,8 @@ void move(int motorLeft, int motorRight)
 {
   motorLeft = motorLeft - 6; // Remove motor velocity error compared with right motor
 
-  motorLeft = constrain(motorLeft, -249, 249); 
+  motorLeft = constrain(motorLeft, -249, 249);
   motorRight = constrain(motorRight, -255, 255);
-
 
   if (motorRight < 0)
   {
