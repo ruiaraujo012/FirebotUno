@@ -1,7 +1,7 @@
 /*
   FirebotUno
   Author: Rui Araújo
-  Version: 0.2.0
+  Version: 0.1.1
 */
 #include <Arduino.h>
 
