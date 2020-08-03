@@ -1,7 +1,7 @@
 /*
   FirebotUno
   Author: Rui Araújo
-  Version: 0.1.1
+  Version: 0.1.2
 */
 #include <Arduino.h>
 
@@ -32,7 +32,7 @@ SoftwareSerial BTSerial(0, 1); // RX | TX
  */
 #define triggerSonar 4
 #define echoSonar 3 // Interrupt 1 (External)
-#define servoLeftAngle 15
+#define servoLeftAngle 5
 
 Servo servoSonar;
 
@@ -44,9 +44,9 @@ volatile byte echoMeasurementIndex;
 /**
  * PID
  */
-const float kp = 0.8;
+const float kp = 0.788;
 const float ki = 0.0;
-const float kd = 0.0;
+const float kd = 598.55;
 const byte setpoint = 45;
 float comulativePIDError;
 float lastPIDError;
